@@ -23,12 +23,11 @@ exports.getUsers = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 // PATCH /api/admin/users/:id/role
 exports.changeRole = async (req, res) => {
   try {
     const { role } = req.body;
-    const allowed = ["user", "volunteer", "admin"];
+    const allowed = ["user", "volunteer", "admin", "requester"]; // ✅ requester add kiya
     if (!allowed.includes(role))
       return res.status(400).json({ success: false, message: "Invalid role" });
 

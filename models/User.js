@@ -7,20 +7,19 @@ const userSchema = new mongoose.Schema(
     email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
     phone: { type: String, unique: true, sparse: true, trim: true },
     password: { type: String },
-    role: { type: String, enum: ["user", "volunteer", "admin"], default: "user" },
-    bloodGroup: { type: String, enum: ["A+","A-","B+","B-","AB+","AB-","O+","O-",""] , default: "" },
+    // models/User.js
+    role: {type: String, enum: ["user", "volunteer", "admin", "requester"], default: "user"},
+    bloodGroup: { type: String, enum: ["A+","A-","B+","B-","AB+","AB-","O+","O-",""], default: "" },
     location: {
       type: { type: String, default: "Point" },
-      coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
+      coordinates: { type: [Number], default: [0, 0] },
       address: { type: String, default: "" },
     },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     avatar: { type: String, default: "" },
-    // OTP
     otp: { type: String },
     otpExpiry: { type: Date },
-    // Volunteer stats (if role is volunteer)
     volunteerStats: {
       tasksCompleted: { type: Number, default: 0 },
       rating: { type: Number, default: 0 },
@@ -32,11 +31,10 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ location: "2dsphere" });
 
-// Hash password before save
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password") || !this.password) return next();
+// ✅ Fix: async middleware — no `next` parameter needed
+userSchema.pre("save", async function () {
+  if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 userSchema.methods.comparePassword = async function (candidate) {

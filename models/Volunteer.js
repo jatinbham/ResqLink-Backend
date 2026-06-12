@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 const volunteerSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    skills: [{ type: String }], // e.g. ["first-aid", "driving", "blood-donation"]
+    skills: [{ type: String }],
+    email:{ type: String, unique: true },
+    mobile: { type: String, unique: true }, // e.g. ["first-aid", "driving", "blood-donation"]
     availability: {
       type: String,
       enum: ["always", "weekdays", "weekends", "on-call"],

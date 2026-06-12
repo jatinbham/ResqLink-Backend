@@ -171,14 +171,136 @@ exports.acceptRequest = async (req, res) => {
   }
 };
 
-// GET /api/volunteers/me  — My volunteer profile
+
 exports.getMyProfile = async (req, res) => {
   try {
     const volunteer = await Volunteer.findOne({ user: req.user._id })
       .populate("user", "name phone email avatar");
+
+    // Not registered as volunteer — return empty instead of 404
+    // so frontend doesn't crash
+    if (!volunteer) {
+      return res.status(200).json({
+        success: true,
+        volunteer: null,
+        isRegistered: false,
+        message: "Not registered as volunteer yet",
+      });
+    }
+
+    res.json({ success: true, volunteer, isRegistered: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+// volunteerController.js mein ye 4 functions ADD karo (existing code ke neeche paste karo)
+
+const Request = require("../models/Request");
+
+// GET /api/volunteers/tasks  — Tasks near this volunteer
+exports.getTasks = async (req, res) => {
+  try {
+    const volunteer = await Volunteer.findOne({ user: req.user._id });
+
+    // Volunteer registered nahi hai — empty list do, crash mat karo
+    if (!volunteer) {
+      return res.status(200).json({ success: true, tasks: [] });
+    }
+
+    // Nearby open requests fetch karo
+    // Agar location hai to geo-query, warna latest requests
+    let tasks;
+    if (volunteer.location?.coordinates?.length === 2) {
+      tasks = await Request.find({
+        status: { $in: ["pending", "active"] },
+        location: {
+          $near: {
+            $geometry: {
+              type: "Point",
+              coordinates: volunteer.location.coordinates,
+            },
+            $maxDistance: 10000, // 10 km
+          },
+        },
+      })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate("requester", "name phone");
+    } else {
+      tasks = await Request.find({ status: { $in: ["pending", "active"] } })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate("requester", "name phone");
+    }
+
+    // Frontend ke liye shape karo
+    const shaped = tasks.map((t) => ({
+      _id:      t._id,
+      title:    t.description || t.category,
+      category: t.category,
+      urgency:  t.urgency || "MEDIUM",
+      distance: "Nearby",
+      eta:      "~10 min",
+      points:   50,
+    }));
+
+    res.json({ success: true, tasks: shaped });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/volunteers/tasks/:taskId/accept
+exports.acceptTask = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.taskId);
+    if (!request)
+      return res.status(404).json({ success: false, message: "Task not found" });
+
+    request.assignedTo = request.assignedTo || [];
+    if (!request.assignedTo.includes(req.user._id)) {
+      request.assignedTo.push(req.user._id);
+    }
+    request.status = "active";
+    await request.save();
+
+    // Volunteer ko busy mark karo
+    await Volunteer.findOneAndUpdate(
+      { user: req.user._id },
+      { isAvailableNow: false, activeRequest: request._id }
+    );
+
+    res.json({ success: true, message: "Task accepted", request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/volunteers/tasks/:taskId/decline
+exports.declineTask = async (req, res) => {
+  try {
+    // Decline = sirf acknowledge karo, request wahi rehti hai
+    res.json({ success: true, message: "Task declined" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/volunteers/duty  — Toggle on/off duty
+exports.toggleDuty = async (req, res) => {
+  try {
+    const { onDuty } = req.body;
+
+    const volunteer = await Volunteer.findOneAndUpdate(
+      { user: req.user._id },
+      { isAvailableNow: !!onDuty },
+      { new: true }
+    );
+
     if (!volunteer)
-      return res.status(404).json({ success: false, message: "Not registered as volunteer" });
-    res.json({ success: true, volunteer });
+      return res.status(404).json({ success: false, message: "Volunteer profile not found" });
+
+    res.json({ success: true, isAvailableNow: volunteer.isAvailableNow });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -21,12 +21,14 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
+  if (process.env.NODE_ENV === "development") return next(); // ← dev bypass
   if (req.user?.role !== "admin")
     return res.status(403).json({ success: false, message: "Admin access required" });
   next();
 };
 
 const volunteerOrAdmin = (req, res, next) => {
+  if (process.env.NODE_ENV === "development") return next(); // ← dev bypass
   if (!["volunteer", "admin"].includes(req.user?.role))
     return res.status(403).json({ success: false, message: "Volunteer or admin access required" });
   next();

@@ -1,14 +1,23 @@
+// routes/donations.js
 const express = require("express");
-const router = express.Router();
+const router  = express.Router();
 const {
-  createDonation,
-  getDonations,
-  updateStatus,
+  getDonors,
+  getBloodDrives,
+  getBloodBankStock,
+  getCriticalRequest,
+  registerDonor,
+  contactDonor,
+  requestDonor,
 } = require("../controllers/donationController");
-const { protect, volunteerOrAdmin } = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 
-router.get("/", getDonations);                                   // public
-router.post("/", createDonation);                                // public (anonymous allowed)
-router.patch("/:id/status", protect, volunteerOrAdmin, updateStatus);
+router.get("/donors",              getDonors);               // public — ?bloodGroup=O-
+router.get("/drives",              getBloodDrives);          // public
+router.get("/bank-stock",          getBloodBankStock);       // public
+router.get("/critical",            getCriticalRequest);      // public
+router.post("/register",           protect, registerDonor);  // become donor
+router.post("/donors/:id/contact", protect, contactDonor);   // contact a donor
+router.post("/donors/:id/request", protect, requestDonor);   // request a donor
 
 module.exports = router;
